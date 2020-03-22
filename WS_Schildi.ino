@@ -1,5 +1,8 @@
- //Source code
+//#########################################################################################################
+#include "WSconfig.h" //set user configurations such as TOKEN and WIFI in this file
+//#########################################################################################################
 #include <NTPClient.h>
+#include "time.h"
 #include <ESP8266WiFi.h>
 #include <WiFiUdp.h>
 #include <TaskScheduler.h>
@@ -22,17 +25,17 @@
 #define IN3  D7 //connect Motor IN3 with D7
 #define IN4  D8 //connect Motor IN4 with D8
 
-#define OPEN 15000;
-#define CLOSE 0;
+#define OPEN 15000; // set steps to fully open door
+#define CLOSE 0;    // fully closed door !!DO NOT USE VALUES < 0!!
 
 #define fSpeed 1 //defines motor basic speed in milliseconds e.g. 1.5 --> 1.5ms per step
-int iSpeedDiv = 5;
+int iSpeedDiv = 1;
 
 //#########################################################################################################
 //BLYNK app related defines
 //#########################################################################################################
 #define BLYNK_PRINT Serial
-char auth[] = "xyz";
+char auth[] = TOKEN;
 
 //#########################################################################################################
 //Internet Time (NTP) related defines
@@ -44,19 +47,23 @@ char auth[] = "xyz";
 //#########################################################################################################
 //timer related defines
 //#########################################################################################################
-#define iTstep  500  //time in milliseconds to call t1
+#define iTstep  1000  //time in milliseconds to call t1
 
 //#########################################################################################################
 //network settings
 //#########################################################################################################
-char ssid[] = "ssid";         //network ssid
-char pass[] = "psw";     //password
+char ssid[] = WIFI_SSD;         //network ssid
+char pass[] = WIFI_PASSWD;     //password
 
 //#########################################################################################################
-//finction prototypes
+//function prototypes
 //#########################################################################################################
 void t1Callback();
 void stepper(long lPosition);
+int sunh(int doy, int nowh, int nowmin, int dst, float lat, float len);
+
+// Time Structure
+struct tm timeinfo;
 
 Task t1(iTstep, TASK_FOREVER, &t1Callback);
 Scheduler runner;
@@ -64,16 +71,26 @@ Ticker tickStepper;
 WiFiUDP ntpUDP;
 NTPClient timeClient(ntpUDP, NTP_ADDRESS, NTP_OFFSET, NTP_INTERVAL);
 
-float fsunheigth;                  //Heigth of sun in degrees
+float fSunHeigth = 0;                  //Heigth of sun in degrees
 String command;
-//const long TWAIT = 10 * 1000000 / TSTEP;  //5s/�s *ISR
-const long SL_DOWN = 100; //slowly close the door permanently
-const uint16_t port = 3000;
-long lCurrentPos = 0; // initial Position = 0
 
+const float geo[] = {50.7695, 12.9713};   //geographic coordinates Einsiedel
+
+enum opMode {
+  AUTO,
+  MANUALLY
+};
+
+int iOpMode = AUTO;
+int iDayOpen = 90;  // 90 --> ~March,30th
+int iDayClose = 300; // 300 --> ~October,26th
+float fSunhOpen = 2.5; // sun more than 2.5 deg above horizon
+float fSunhClose = -2.5; // sun less than -2.5 deg below horizon
+
+long lCurrentPos = 0; // initial Position = 0
 long lTargetPos = 0;
 
-// Use WiFiClient class to create TCP connections
+// Use WiFiClient class
 WiFiClient client;
 
 //#########################################################################################################
@@ -115,6 +132,22 @@ void t1Callback()
 {
   Serial.println("Hello from Timer!");
   Blynk.virtualWrite(V0, lCurrentPos);//write current position to BLYNK
+  fSunHeigth = sunh(timeinfo.tm_yday + 1, timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_isdst, geo[0], geo[1]);
+  Serial.print("sunheigth[deg]: ");
+  Serial.println(fSunHeigth);
+  if (iOpMode == AUTO)
+  {
+    if (fSunHeigth > fSunhOpen)
+    {
+      lTargetPos = OPEN;
+    }
+    else if (fSunHeigth < fSunhClose)
+    {
+      lTargetPos = CLOSE;
+    }
+  }
+  Serial.print("Door position: ");
+  Serial.println(lCurrentPos);
 }
 //#########################################################################################################
 
@@ -179,17 +212,25 @@ BLYNK_WRITE(V1)     //Speed
 }
 BLYNK_WRITE(V2)     //Mode
 {
+  iOpMode = param.asInt();
 }
 
 BLYNK_WRITE(V3)     //manuell öffnen/schließen
 {
-  if (param.asInt() == 1)
-  { // button set
-    lTargetPos = OPEN;
-  }
-  else if (param.asInt() == 0)
+  if (iOpMode == MANUALLY)
   {
-    lTargetPos = CLOSE;
+    if (param.asInt() == 1)
+    { // button set
+      lTargetPos = OPEN;
+    }
+    else if (param.asInt() == 0)
+    {
+      lTargetPos = CLOSE;
+    }
+  }
+  else
+  {
+    Blynk.notify("Torsteuerung im AUTO-Modus, vorher auf Manuell umstellen!");
   }
 }
 
@@ -200,10 +241,29 @@ BLYNK_WRITE(V3)     //manuell öffnen/schließen
 //#########################################################################################################
 void loop() {
   runner.execute();
-  Serial.println("Hello from Loop!");
-  delay(100);
+  //Serial.println("Hello from Loop!");
+  //delay(100);
   Blynk.run();
 }
+//#########################################################################################################
+
+//#########################################################################################################
+// calculate sunheigth in degree
+//#########################################################################################################
+int sunh(int doy, int nowh, int nowmin, int dst, float lat, float len)
+{
+  //sun heigth in Ã‚Â° is degre(asin())
+  float deklin = 23.45 * sin(2 * M_PI * (284 + (float) doy) / 365);
+  float omeg = (12 - ((float) nowh + (float) nowmin / 60) - (1 - len / 15)
+                + (float) dst) / 24 * 360;
+  lat = lat * 2 * M_PI / 360;       //deg to rad latitude
+  len = len * 2 * M_PI / 360;       //deg to rad length
+  omeg = omeg * 2 * M_PI / 360;     //deg to rad omega
+  deklin = deklin * 2 * M_PI / 360; //deg to rad declination
+  return asin(sin(deklin) * sin(lat) + cos(deklin) * cos(lat) * cos(omeg))
+         * 360 / (2 * M_PI);
+}
+
 //#########################################################################################################
 
 //#########################################################################################################
