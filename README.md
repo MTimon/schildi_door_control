@@ -8,4 +8,10 @@
 ## How to use
 - download Arduino IDE
 - install libraries: BLYNK, OTA, NTPClient, ESP8266
-- use 
+- use WS_Schildi.ino without OTA-update
+- or use WS_Schildi_OTA.ino with OTA-update
+- in both cases create or download the "WS_config.h" into the same directory as .ino-file
+- make your custom configurations concerning SSID and PASSWORD in "WS_config.h"
+- install BLYNK onto your mobile via PlayStore or AppStore
+- register on BLYNK
+- scan QR-Code
