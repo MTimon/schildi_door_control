@@ -26,7 +26,6 @@
 #define IN3  D7 //connect Motor IN3 with D7
 #define IN4  D8 //connect Motor IN4 with D8
 
-#define OPEN 15000   // set steps to fully open door
 #define CLOSE 0       // fully closed door !!DO NOT USE VALUES < 0!!
 
 #define fSpeed 1.5 //defines motor basic speed in milliseconds e.g. 1.5 --> 1.5ms per step
