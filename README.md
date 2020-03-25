@@ -15,3 +15,8 @@
 - install BLYNK onto your mobile via PlayStore or AppStore
 - register on BLYNK
 - scan QR-Code
+- generate your own blynk-token
+- put in the token into "WS_config.h"
+- upload sthe sketch
+## OTA
+After first upload of the WS_Schildi_OTA.ino - project, you should be able to upload further software by use of over-the-air-process. Useful information: https://arduino-esp8266.readthedocs.io/en/latest/ota_updates/readme.html
