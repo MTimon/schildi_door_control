@@ -26,8 +26,8 @@
 #define IN3  D7 //connect Motor IN3 with D7
 #define IN4  D8 //connect Motor IN4 with D8
 
-#define OPEN 15000; // set steps to fully open door
-#define CLOSE 0;    // fully closed door !!DO NOT USE VALUES < 0!!
+#define OPEN 15000   // set steps to fully open door
+#define CLOSE 0       // fully closed door !!DO NOT USE VALUES < 0!!
 
 #define fSpeed 1.5 //defines motor basic speed in milliseconds e.g. 1.5 --> 1.5ms per step
 int iSpeedDiv = 1;
@@ -147,7 +147,7 @@ void t1Callback()
   Serial.println (buffer);
   Serial.println (rawtime);
   Blynk.virtualWrite(V0, lCurrentPos);//write current position to BLYNK
-  fSunHeigth = sunh(ptm->tm_yday, (ptm->tm_hour + MEZ) % 24, ptm->tm_min, ptm->tm_isdst, geo[0], geo[1]);
+  fSunHeigth = sunh(ptm->tm_yday, ptm->tm_hour, ptm->tm_min, ptm->tm_isdst, geo[0], geo[1]);
   Serial.print("sunheigth[deg]: ");
   Serial.println(fSunHeigth);
   //  Serial.print("timeinfo.tm_yday: ");
@@ -163,30 +163,30 @@ void t1Callback()
     {
       if (fSunHeigth > fSunhOpen) // sun rised above "fSunhOpen"
       {
-        lTargetPos = OPEN;
+        if(lTargetPos == CLOSE)
+        {
+          lTargetPos = OPEN;
+          Blynk.notify(String("Die Tuer wurde um ") + formattedTime + " geoeffnet");
+        }
         Blynk.virtualWrite(V1, 1);
         if (bFirstRun)
         {
           lCurrentPos = CLOSE;
           bFirstRun = false;
         }
-        else
-        {
-          Blynk.notify(String("Die Tuer wurde um ") + formattedTime + " geoeffnet");
-        }
       }
       else if (fSunHeigth < fSunhClose) // sun set below"fSunhClose"
       {
-        lTargetPos = CLOSE;
+        if(lTargetPos == OPEN)
+        {
+          lTargetPos = CLOSE;
+          Blynk.notify(String("Die Tuer wurde um ") + formattedTime + " geschlossen");
+        }
         Blynk.virtualWrite(V1, 0);
         if (bFirstRun)
         {
           lCurrentPos = OPEN;
           bFirstRun = false;
-        }
-        else
-        {
-          Blynk.notify(String("Die Tuer wurde um ") + formattedTime + " geschlossen");
         }
       }
     }
@@ -197,10 +197,6 @@ void t1Callback()
       {
         lCurrentPos = OPEN;
         bFirstRun = false;
-      }
-      else
-      {
-        Blynk.notify(String("Die Tuer wurde um ") + formattedTime + " geschlossen");
       }
     }
   }
