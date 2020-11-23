@@ -44,6 +44,7 @@ char auth[] = TOKEN;
 #define NTP_INTERVAL 60 * 1000        // in miliseconds
 #define NTP_ADDRESS  "0.pool.ntp.org" // ntp server address
 #define MEZ 1
+
 //#########################################################################################################
 //timer related defines
 //#########################################################################################################
@@ -73,7 +74,7 @@ WiFiUDP ntpUDP;
 NTPClient timeClient(ntpUDP, NTP_ADDRESS, NTP_OFFSET, NTP_INTERVAL);
 
 //#########################################################################################################
-//automatic open close concertning variables
+//automatic open close concerning variables
 //#########################################################################################################
 float fSunHeigth = 0;                     //Heigth of sun in degrees
 String command;
